@@ -26,6 +26,8 @@ function iniciarGL(canvas) {
 // Shading é o processo de desenhar, atribuir e ajustar shaders para criar seu aspecto tridimensional.
 // Shaders são definições de como os objetos responderão à luz, descrevendo a aparência de sua superfície e como serão renderizados.
 
+// Antes de compilar o shader na GPU temos que criar um programa, anexar os shaders compilados no programa e depois compilar.
+// Também obteremos as referências para as variáveis uniforms e atributos para enviar nossos dados de vértices e transformações.
 var shaderProgram;
 function iniciarShaders() {
   var vertexShader = getShader(gl, "#shader-vs");
@@ -62,6 +64,7 @@ function iniciarShaders() {
   );
 }
 
+// A função getShader faz a compilação dos shaders
 function getShader(gl, id) {
   var shaderScript = $(id)[0];
   if (!shaderScript) {
@@ -93,4 +96,70 @@ function getShader(gl, id) {
   }
 
   return shader;
+}
+
+// Criando oss buffers na GPU para colocar os dados dos vértices
+
+var mMatrix = mat4.create();
+var vMatrix = mat4.create();
+var pMatrix = mat4.create();
+
+var triangleVertexPositionBuffer;
+var squareVertexPositionBuffer;
+
+function iniciarBuffers() {
+  triangleVertexPositionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+  
+  var vertices = [0.0, 1.0, 0.0, -1.0, -1.0, 0.0, 1.0, -1.0, 0.0];
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+  triangleVertexPositionBuffer.itemSize = 3;
+  triangleVertexPositionBuffer.numItems = 3;
+
+  squareVertexPositionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
+  vertices = [1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, -1.0, 0.0, -1.0, -1.0, 0.0];
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+  squareVertexPositionBuffer.itemSize = 3;
+  squareVertexPositionBuffer.numItems = 4;
+}
+
+function iniciarAmbiente() {
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  gl.enable(gl.DEPTH_TEST);
+}
+
+function desenharCena()
+{
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  mat4.perspective(pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
+  mat4.identity(mMatrix);
+  mat4.identity(vMatrix);
+  
+  // Desenhando Triângulo
+  var translation = vec3.create();
+  vec3.set (translation, -1.5, 1.0, -7.0); 
+  mat4.translate(mMatrix, mMatrix, translation);
+  gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+  gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+  setMatrixUniforms();
+  gl.drawArrays(gl.TRIANGLES, 0, triangleVertexPositionBuffer.numItems);
+  
+  // Desenhando o Quadrado
+  vec3.set (translation, 3.0, 0.0, 0.0); 
+  mat4.translate(mMatrix, mMatrix, translation);
+  gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
+  gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, squareVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+  setMatrixUniforms();
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, squareVertexPositionBuffer.numItems);
+}
+
+function setMatrixUniforms()
+{
+  gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, 
+		      false, pMatrix);
+  gl.uniformMatrix4fv(shaderProgram.vMatrixUniform, 
+		      false, vMatrix);
+  gl.uniformMatrix4fv(shaderProgram.mMatrixUniform, 
+		      false, mMatrix);
 }
